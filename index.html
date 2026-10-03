@@ -30,7 +30,7 @@ const COLORS = {
   tramStop: 0xeeeeee,
   tramLine: 0xdd3333,
   roof: [0x7a4a3a, 0x8b5a4a, 0x6a3a2a, 0x9a6a5a, 0x5a3a2a],
-  walls: [0xd4a574, 0xc4956a, 0xdeb887, 0xcd853f, 0xd2b48c, 0xe8c18e, 0xc97d4e, 0xb8860b, 0xdaa520, 0xc08050, 0xb8956a, 0xd0a070, 0xc88858, 0xe0b888],
+  walls: [0xf0d8b0, 0xe8d0a0, 0xd4a574, 0xc4956a, 0xdeb887, 0xcd853f, 0xd2b48c, 0xe8c18e, 0xc97d4e, 0xb8860b, 0xdaa520, 0xc08050, 0xb8956a, 0xd0a070, 0xc88858, 0xe0b888],
   landmark: [0xf0d8b0, 0xe8c898, 0xd8b888]
 };
 
@@ -39,7 +39,7 @@ const CITY = {
   ROAD: 1.8,
   CELL: 3.0,
   GX_MIN: -5, GX_MAX: 5,
-  GZ_MIN: -3, GZ_MAX: 9,
+  GZ_MIN: -3, GZ_MAX: 19,
   BUILD_MIN_H: 0.3,
   BUILD_MAX_H: 2.2,
   BUILD_SIZE: 1.2,
@@ -110,18 +110,18 @@ const scene = new THREE.Scene();
 const W = window.innerWidth;
 const H = window.innerHeight;
 const camera = new THREE.PerspectiveCamera(75, W / H, 0.1, 500);
-camera.position.set(2, 2, 30);
+camera.position.set(2, 2.5, 28);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(W, H);
 renderer.setClearColor(0x87CEEB);
 document.body.appendChild(renderer.domElement);
 
-scene.add(new THREE.AmbientLight(0x556688));
-const sun = new THREE.DirectionalLight(0xffeedd);
+scene.add(new THREE.AmbientLight(0x88aacc));
+const sun = new THREE.DirectionalLight(0xfff0dd);
 sun.position.set(0.6, 1, 0.4).normalize();
 scene.add(sun);
-scene.add(new THREE.DirectionalLight(0x8899bb, 0.3));
+scene.add(new THREE.DirectionalLight(0x8899bb, 0.2));
 
 const wallsMat = new THREE.MeshStandardMaterial({ color: 0xc4956a });
 const roofMat = new THREE.MeshStandardMaterial({ color: 0x7a4a3a });
@@ -289,8 +289,8 @@ const tramRoof = makeBox(0.7, 0.06, 1.6, tramRoofMat);
 tramRoof.position.set(14, 0.38, 52);
 scene.add(tramRoof);
 
-let camPos = new THREE.Vector3(2, 2, 30);
-let camTarget = new THREE.Vector3(2, 1.8, 60);
+let camPos = new THREE.Vector3(2, 2.5, 28);
+let camTarget = new THREE.Vector3(2, 2.2, 45);
 let yaw = Math.atan2(camPos.x - camTarget.x, camPos.z - camTarget.z);
 let pitch = -Math.asin((camPos.y - camTarget.y) / camPos.distanceTo(camTarget));
 let speed = 0.3;
