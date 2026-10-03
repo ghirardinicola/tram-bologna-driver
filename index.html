@@ -37,13 +37,13 @@ const COLORS = {
 const CITY = {
   BLOCK: 4.0,
   ROAD: 1.8,
-  CELL: 5.8,
+  CELL: 3.0,
   GX_MIN: -5, GX_MAX: 5,
   GZ_MIN: -3, GZ_MAX: 9,
   BUILD_MIN_H: 0.3,
   BUILD_MAX_H: 2.2,
-  BUILD_SIZE: 1.0,
-  BUILD_GAP: 0.15
+  BUILD_SIZE: 1.2,
+  BUILD_GAP: 0.05
 };
 
 const STREETS = [
@@ -110,7 +110,7 @@ const scene = new THREE.Scene();
 const W = window.innerWidth;
 const H = window.innerHeight;
 const camera = new THREE.PerspectiveCamera(75, W / H, 0.1, 500);
-camera.position.set(0, 2.5, 18);
+camera.position.set(2, 2, 30);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(W, H);
@@ -198,27 +198,23 @@ for (const st of STREETS) {
   }
 }
 
-const BLK = CITY.BLOCK;
-const RD = CITY.ROAD;
 const CL = CITY.CELL;
 
 const buildings = [];
 for (let gx = CITY.GX_MIN; gx <= CITY.GX_MAX; gx++) {
   for (let gz = CITY.GZ_MIN; gz <= CITY.GZ_MAX; gz++) {
     if (gx >= -1 && gx <= 1 && gz >= -1 && gz <= 1) continue;
-    if (Math.random() < 0.12) continue;
     const bx = gx * CL;
     const bz = gz * CL;
-    const mg = 0.3;
-    const bs = CITY.BUILD_SIZE;
-    const gp = CITY.BUILD_GAP;
-    const n = Math.floor((BLK - 2*mg) / (bs + gp));
+    const n = 5;
+    const mg = 0.15;
+    const step = (CL - 2 * mg) / n;
     for (let i = 0; i < n; i++) {
       for (let j = 0; j < n; j++) {
-        const x = bx + mg + i * (bs + gp) + (Math.random() - 0.5) * 0.12;
-        const z = bz + mg + j * (bs + gp) + (Math.random() - 0.5) * 0.12;
-        const w = bs + (Math.random() - 0.5) * 0.15;
-        const d = bs + (Math.random() - 0.5) * 0.15;
+        const w = step * 0.88 + (Math.random() - 0.5) * 0.06;
+        const d = step * 0.88 + (Math.random() - 0.5) * 0.06;
+        const x = bx + mg + i * step + (Math.random() - 0.5) * 0.04;
+        const z = bz + mg + j * step + (Math.random() - 0.5) * 0.04;
         const h = CITY.BUILD_MIN_H + Math.random() * (CITY.BUILD_MAX_H - CITY.BUILD_MIN_H);
         buildings.push({ x, z, w, d, h });
       }
@@ -293,8 +289,8 @@ const tramRoof = makeBox(0.7, 0.06, 1.6, tramRoofMat);
 tramRoof.position.set(14, 0.38, 52);
 scene.add(tramRoof);
 
-let camPos = new THREE.Vector3(0, 2.5, 18);
-let camTarget = new THREE.Vector3(0, 1.5, 35);
+let camPos = new THREE.Vector3(2, 2, 30);
+let camTarget = new THREE.Vector3(2, 1.8, 60);
 let yaw = Math.atan2(camPos.x - camTarget.x, camPos.z - camTarget.z);
 let pitch = -Math.asin((camPos.y - camTarget.y) / camPos.distanceTo(camTarget));
 let speed = 0.3;
