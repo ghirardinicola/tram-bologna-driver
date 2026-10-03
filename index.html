@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<title>Bolo Tram - Bologna 3D</title>
+<style>
+*{margin:0;padding:0;overflow:hidden}
+body{background:#000;font-family:monospace}
+canvas{display:block}
+#hud{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:#fff;background:rgba(0,0,0,0.65);padding:10px 22px;border-radius:8px;font-size:14px;user-select:none;pointer-events:none;z-index:10;line-height:1.6}
+#hud span{color:#cc3333;font-weight:bold}
+#crosshair{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);color:#fff;font-size:24px;user-select:none;pointer-events:none;z-index:10;opacity:0.5}
+</style>
+</head>
+<body>
+<div id="hud">
+<span>BOLO TRAM</span> &mdash; <span>W</span><span>A</span><span>S</span><span>D</span> sposta &bull; <span>Q</span><span>E</span> su/giù &bull; <span>MOUSE</span> guardati intorno &bull; <span>SCROLL</span> velocità
+</div>
+<div id="crosshair">+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/three@0.128.0/build/three.min.js"></script>
+<script>
+const PI = Math.PI, TAU = PI * 2, HALF = PI / 2;
+
+const COLORS = {
+  ground: 0x5a5a5a,
+  street: 0x4a4a4a,
+  piazza: 0xc4b89a,
+  tram: 0xcc2222,
+  tramStop: 0xeeeeee,
+  tramLine: 0xdd3333,
+  roof: [0x7a4a3a, 0x8b5a4a, 0x6a3a2a, 0x9a6a5a, 0x5a3a2a],
+  walls: [0xd4a574, 0xc4956a, 0xdeb887, 0xcd853f, 0xd2b48c, 0xe8c18e, 0xc97d4e, 0xb8860b, 0xdaa520, 0xc08050, 0xb8956a, 0xd0a070, 0xc88858, 0xe0b888],
+  landmark: [0xf0d8b0, 0xe8c898, 0xd8b888]
+};
+
+const CITY = {
+  BLOCK: 4.0,
+  ROAD: 1.8,
+  CELL: 5.8,
+  GX_MIN: -5, GX_MAX: 5,
+  GZ_MIN: -3, GZ_MAX: 9,
+  BUILD_MIN_H: 0.3,
+  BUILD_MAX_H: 2.2,
+  BUILD_SIZE: 1.0,
+  BUILD_GAP: 0.15
+};
+
+const STREETS = [
+  {
+    name: 'Via Indipendenza',
+    pts: [{x:0,z:3.5},{x:0.5,z:8},{x:1,z:15},{x:1.5,z:22},{x:2,z:30},{x:2.5,z:38},{x:3,z:46},{x:3.5,z:52}],
+    w:1.5
+  },
+  {
+    name: 'Via Rizzoli',
+    pts: [{x:0,z:0},{x:4,z:-1},{x:10,z:-2},{x:18,z:-3},{x:24,z:-5}],
+    w:1.2
+  },
+  {
+    name: 'Via Ugo Bassi',
+    pts: [{x:0,z:0},{x:-4,z:1},{x:-10,z:2},{x:-18,z:3},{x:-24,z:4}],
+    w:1.2
+  },
+  {
+    name: 'Via Marconi',
+    pts: [{x:0,z:-2},{x:-3,z:-8},{x:-6,z:-16},{x:-10,z:-26},{x:-14,z:-34}],
+    w:1.0
+  },
+  {
+    name: 'Via Galliera',
+    pts: [{x:0,z:4},{x:-2,z:8},{x:-5,z:16},{x:-8,z:26},{x:-12,z:36}],
+    w:1.0
+  },
+  {
+    name: 'Via Castiglione',
+    pts: [{x:0,z:-2},{x:2,z:-8},{x:3,z:-16},{x:4,z:-26},{x:5,z:-34}],
+    w:1.0
+  }
+];
+
+const TRAM_ROUTE = [
+  {x:14,z:51},{x:10,z:48},{x:6,z:42},{x:3.5,z:38},{x:3,z:34},{x:2.5,z:28},{x:2,z:22},{x:1.5,z:16},{x:0.8,z:10},{x:0.3,z:5},{x:0,z:1},{x:0.5,z:-1},{x:3,z:-2},{x:7,z:-3},{x:12,z:-4},{x:16,z:-6},{x:18,z:-10},{x:18,z:-16},{x:16,z:-22}
+];
+
+const TRAM_STOPS = [
+  {x:14,z:51,n:'Stazione Centrale'},
+  {x:3.5,z:38,n:'Via Indipendenza'},
+  {x:2,z:22,n:'Piazza dell\'Unità'},
+  {x:0,z:1,n:'Piazza Maggiore'},
+  {x:7,z:-3,n:'Due Torri'},
+  {x:18,z:-10,n:'Porta San Mamolo'}
+];
+
+const PIAZZA = { x: -4.5, z: -3.5, w: 9, d: 7 };
+
+const LANDMARKS = [
+  { x:-3.5, z:-4, w:6, d:3, h:1.8, c:0xe0c898, n:'Basilica S. Petronio' },
+  { x:-5.5, z:-1, w:2, d:3.5, h:1.6, c:0xd0b888, n:'Palazzo d\'Accursio' },
+  { x:-5, z:2, w:2.5, d:3, h:1.8, c:0xd8b880, n:'Palazzo Comunale' },
+  { x:-1.5, z:-3.5, w:2, d:2, h:1.2, c:0xc8a070, n:'Palazzo dei Notai' },
+  { x:1.5, z:-3.5, w:2, d:2, h:1.2, c:0xc8a070, n:'Palazzo Re Enzo' },
+  { x:4.5, z:-1.5, w:0.8, d:0.8, h:4.0, c:0xa08060, n:'Torre Asinelli' },
+  { x:4.5, z:0.5, w:0.6, d:0.6, h:2.8, c:0xa08060, n:'Torre Garisenda' },
+  { x:12, z:49, w:10, d:6, h:2.5, c:0xccbbaa, n:'Bologna Centrale' }
+];
+
+const scene = new THREE.Scene();
+
+const W = window.innerWidth;
+const H = window.innerHeight;
+const camera = new THREE.PerspectiveCamera(50, W / H, 0.1, 500);
+camera.position.set(35, 30, 45);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(W, H);
+renderer.setClearColor(0x87CEEB);
+document.body.appendChild(renderer.domElement);
+
+scene.add(new THREE.AmbientLight(0x556688));
+const sun = new THREE.DirectionalLight(0xffeedd);
+sun.position.set(0.6, 1, 0.4).normalize();
+scene.add(sun);
+scene.add(new THREE.DirectionalLight(0x8899bb, 0.3));
+
+const wallsMat = new THREE.MeshStandardMaterial({ color: 0xc4956a });
+const roofMat = new THREE.MeshStandardMaterial({ color: 0x7a4a3a });
+const wallMats = COLORS.walls.map(c => new THREE.MeshStandardMaterial({ color: c }));
+const roofMats = COLORS.roof.map(c => new THREE.MeshStandardMaterial({ color: c }));
+const railMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+const stopMat = new THREE.MeshStandardMaterial({ color: COLORS.tramStop });
+const tramMat = new THREE.MeshStandardMaterial({ color: COLORS.tramLine });
+const tramCarMat = new THREE.MeshStandardMaterial({ color: 0xdd3333 });
+const tramCabMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
+const tramRoofMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+const streetMat = new THREE.MeshStandardMaterial({ color: COLORS.street });
+const piazzaMat = new THREE.MeshStandardMaterial({ color: COLORS.piazza });
+const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.ground });
+const signalMat = new THREE.MeshStandardMaterial({ color: 0xcc2222 });
+const poleMat = new THREE.MeshStandardMaterial({ color: 0x666666 });
+const roofMat2 = new THREE.MeshStandardMaterial({ color: 0x6a4a3a });
+
+function pick(arr) { return arr[Math.floor(Math.random() * arr.length)]; }
+
+function makeBox(w, h, d, color) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, h, d), color);
+}
+
+function makeFlat(w, d, color) {
+  return new THREE.Mesh(new THREE.BoxGeometry(w, 0.02, d), color);
+}
+
+function isOnStreet(x, z) {
+  for (let s = 0; s < STREETS.length; s++) {
+    const pts = STREETS[s].pts;
+    const hw = STREETS[s].w * 0.5 + 0.4;
+    for (let i = 0; i < pts.length - 1; i++) {
+      const ax = pts[i].x, az = pts[i].z;
+      const bx = pts[i+1].x, bz = pts[i+1].z;
+      const dx = bx - ax, dz = bz - az;
+      const len = Math.sqrt(dx*dx + dz*dz);
+      if (len < 0.001) continue;
+      const t = Math.max(0, Math.min(1, ((x-ax)*dx + (z-az)*dz) / (len*len)));
+      const px = ax + t * dx, pz = az + t * dz;
+      const ddx = x - px, ddz = z - pz;
+      if (ddx*ddx + ddz*ddz < hw*hw) return true;
+    }
+  }
+  return false;
+}
+
+function isOnPiazza(x, z) {
+  return x > PIAZZA.x && x < PIAZZA.x + PIAZZA.w &&
+         z > PIAZZA.z && z < PIAZZA.z + PIAZZA.d;
+}
+
+const ground = makeFlat(200, 200, groundMat);
+ground.position.y = -0.02;
+scene.add(ground);
+
+const piazza = makeFlat(PIAZZA.w, PIAZZA.d, piazzaMat);
+piazza.position.set(PIAZZA.x + PIAZZA.w * 0.5, 0, PIAZZA.z + PIAZZA.d * 0.5);
+scene.add(piazza);
+
+for (const st of STREETS) {
+  const pts = st.pts;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const ax = pts[i].x, az = pts[i].z;
+    const bx = pts[i+1].x, bz = pts[i+1].z;
+    const dx = bx - ax, dz = bz - az;
+    const len = Math.sqrt(dx*dx + dz*dz);
+    if (len < 0.01) continue;
+    const mx = (ax + bx) * 0.5, mz = (az + bz) * 0.5;
+    const seg = makeFlat(st.w, len + 0.5, streetMat);
+    seg.position.set(mx, 0, mz);
+    seg.lookAt(new THREE.Vector3(bx, 0, bz));
+    scene.add(seg);
+  }
+}
+
+const BLK = CITY.BLOCK;
+const RD = CITY.ROAD;
+const CL = CITY.CELL;
+
+const buildings = [];
+for (let gx = CITY.GX_MIN; gx <= CITY.GX_MAX; gx++) {
+  for (let gz = CITY.GZ_MIN; gz <= CITY.GZ_MAX; gz++) {
+    if (gx >= -1 && gx <= 1 && gz >= -1 && gz <= 1) continue;
+    if (Math.random() < 0.12) continue;
+    const bx = gx * CL;
+    const bz = gz * CL;
+    const mg = 0.3;
+    const bs = CITY.BUILD_SIZE;
+    const gp = CITY.BUILD_GAP;
+    const n = Math.floor((BLK - 2*mg) / (bs + gp));
+    for (let i = 0; i < n; i++) {
+      for (let j = 0; j < n; j++) {
+        const x = bx + mg + i * (bs + gp) + (Math.random() - 0.5) * 0.12;
+        const z = bz + mg + j * (bs + gp) + (Math.random() - 0.5) * 0.12;
+        const w = bs + (Math.random() - 0.5) * 0.15;
+        const d = bs + (Math.random() - 0.5) * 0.15;
+        const h = CITY.BUILD_MIN_H + Math.random() * (CITY.BUILD_MAX_H - CITY.BUILD_MIN_H);
+        buildings.push({ x, z, w, d, h });
+      }
+    }
+  }
+}
+
+for (const b of buildings) {
+  const wallMat = pick(wallMats);
+  const rc = pick(COLORS.roof);
+  const mesh = makeBox(b.w, b.h, b.d, wallMat);
+  mesh.position.set(b.x + b.w * 0.5, b.h * 0.5, b.z + b.d * 0.5);
+  scene.add(mesh);
+  const roofMesh = makeBox(b.w + 0.06, 0.04, b.d + 0.06, pick(roofMats));
+  roofMesh.position.set(b.x + b.w * 0.5, b.h + 0.02, b.z + b.d * 0.5);
+  scene.add(roofMesh);
+}
+
+for (const lm of LANDMARKS) {
+  const mat = new THREE.MeshStandardMaterial({ color: lm.c });
+  const mesh = makeBox(lm.w, lm.h, lm.d, mat);
+  mesh.position.set(lm.x + lm.w * 0.5, lm.h * 0.5, lm.z + lm.d * 0.5);
+  scene.add(mesh);
+  const rMat = roofMat2;
+  const roof = makeBox(lm.w + 0.08, 0.05, lm.d + 0.08, rMat);
+  roof.position.set(lm.x + lm.w * 0.5, lm.h + 0.025, lm.z + lm.d * 0.5);
+  scene.add(roof);
+}
+
+const route = TRAM_ROUTE;
+for (let i = 0; i < route.length - 1; i++) {
+  const ax = route[i].x, az = route[i].z;
+  const bx = route[i+1].x, bz = route[i+1].z;
+  const dx = bx - ax, dz = bz - az;
+  const len = Math.sqrt(dx*dx + dz*dz);
+  if (len < 0.05) continue;
+  const mx = (ax + bx) * 0.5, mz = (az + bz) * 0.5;
+  const perpX = -dz / len, perpZ = dx / len;
+  const seg = makeFlat(0.4, len, tramMat);
+  seg.position.set(mx, 0.08, mz);
+  seg.lookAt(new THREE.Vector3(bx, 0.08, bz));
+  scene.add(seg);
+  const railL = makeFlat(0.04, len, railMat);
+  railL.position.set(mx - 0.12 * perpX, 0.12, mz - 0.12 * perpZ);
+  railL.lookAt(new THREE.Vector3(bx, 0.12, bz));
+  scene.add(railL);
+  const railR = makeFlat(0.04, len, railMat);
+  railR.position.set(mx + 0.12 * perpX, 0.12, mz + 0.12 * perpZ);
+  railR.lookAt(new THREE.Vector3(bx, 0.12, bz));
+  scene.add(railR);
+}
+
+for (const st of TRAM_STOPS) {
+  const plat = makeFlat(1.0, 0.6, stopMat);
+  plat.position.set(st.x, 0.06, st.z);
+  scene.add(plat);
+  const pole = makeBox(0.04, 0.5, 0.04, poleMat);
+  pole.position.set(st.x - 0.3, 0.25, st.z);
+  scene.add(pole);
+  const sig = makeBox(0.3, 0.15, 0.04, signalMat);
+  sig.position.set(st.x - 0.3, 0.5, st.z);
+  scene.add(sig);
+}
+
+const tramCarBody = makeBox(0.8, 0.3, 1.8, tramCarMat);
+tramCarBody.position.set(14, 0.2, 52);
+scene.add(tramCarBody);
+const tramCab = makeBox(0.7, 0.15, 0.3, tramCabMat);
+tramCab.position.set(14, 0.35, 52.8);
+scene.add(tramCab);
+const tramRoof = makeBox(0.7, 0.06, 1.6, tramRoofMat);
+tramRoof.position.set(14, 0.38, 52);
+scene.add(tramRoof);
+
+let camPos = new THREE.Vector3(35, 30, 45);
+let camTarget = new THREE.Vector3(0, 0, 20);
+let yaw = Math.atan2(camPos.x - camTarget.x, camPos.z - camTarget.z);
+let pitch = -Math.asin((camPos.y - camTarget.y) / camPos.distanceTo(camTarget));
+let speed = 0.3;
+const keys = {};
+const mouse = { lx: 0, ly: 0, down: false, grabbed: false };
+
+document.addEventListener('keydown', e => { keys[e.key.toLowerCase()] = true;
+  if (e.key === 'Shift') speed = 0.8;
+});
+document.addEventListener('keyup', e => { keys[e.key.toLowerCase()] = false;
+  if (e.key === 'Shift') speed = 0.3;
+});
+
+document.addEventListener('mousedown', e => {
+  if (e.button === 0) {
+    mouse.down = true;
+    mouse.lx = e.clientX;
+    mouse.ly = e.clientY;
+    mouse.grabbed = true;
+    document.body.style.cursor = 'grabbing';
+  }
+});
+document.addEventListener('mouseup', e => {
+  if (e.button === 0) {
+    mouse.down = false;
+    mouse.grabbed = false;
+    document.body.style.cursor = 'default';
+  }
+});
+document.addEventListener('mousemove', e => {
+  if (!mouse.down) return;
+  const dx = e.clientX - mouse.lx;
+  const dy = e.clientY - mouse.ly;
+  yaw -= dx * 0.004;
+  pitch += dy * 0.004;
+  pitch = Math.max(-1.4, Math.min(1.4, pitch));
+  mouse.lx = e.clientX;
+  mouse.ly = e.clientY;
+});
+document.addEventListener('wheel', e => {
+  speed = Math.max(0.05, Math.min(2.0, speed + (e.deltaY > 0 ? -0.05 : 0.05)));
+}, {passive: true});
+
+document.addEventListener('contextmenu', e => e.preventDefault());
+
+function updateCamera(dt) {
+  const fwd = new THREE.Vector3(-Math.sin(yaw), 0, -Math.cos(yaw));
+  const right = new THREE.Vector3(Math.cos(yaw), 0, -Math.sin(yaw));
+  const move = new THREE.Vector3();
+  if (keys['w']) move.add(fwd);
+  if (keys['s']) move.sub(fwd);
+  if (keys['a']) move.sub(right);
+  if (keys['d']) move.add(right);
+  if (keys['q']) move.y += 1;
+  if (keys['e']) move.y -= 1;
+  if (move.length() > 0) {
+    move.normalize().multiplyScalar(speed * dt * 8);
+    camPos.add(move);
+  }
+  const lookDir = new THREE.Vector3(
+    -Math.sin(yaw) * Math.cos(pitch),
+    Math.sin(pitch),
+    -Math.cos(yaw) * Math.cos(pitch)
+  );
+  camTarget.copy(camPos).add(lookDir);
+  camera.position.copy(camPos);
+  camera.lookAt(camTarget);
+}
+
+window.addEventListener('resize', () => {
+  renderer.setSize(window.innerWidth, window.innerHeight);
+  camera.aspect = window.innerWidth / window.innerHeight;
+});
+
+let lastTime = 0;
+function animate(time) {
+  const dt = Math.min(0.05, (time - lastTime) * 0.001);
+  lastTime = time;
+  updateCamera(dt);
+  renderer.render(scene, camera);
+  requestAnimationFrame(animate);
+}
+
+requestAnimationFrame(animate);
+</script>
+</body>
+</html>
