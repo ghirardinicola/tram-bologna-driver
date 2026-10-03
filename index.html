@@ -203,7 +203,7 @@ const CL = CITY.CELL;
 const buildings = [];
 for (let gx = CITY.GX_MIN; gx <= CITY.GX_MAX; gx++) {
   for (let gz = CITY.GZ_MIN; gz <= CITY.GZ_MAX; gz++) {
-    if (gx >= -1 && gx <= 1 && gz >= -1 && gz <= 1) continue;
+    if (gx == 0 && gz == 0) continue;
     const bx = gx * CL;
     const bz = gz * CL;
     const n = 5;
@@ -215,6 +215,7 @@ for (let gx = CITY.GX_MIN; gx <= CITY.GX_MAX; gx++) {
         const d = step * 0.88 + (Math.random() - 0.5) * 0.06;
         const x = bx + mg + i * step + (Math.random() - 0.5) * 0.04;
         const z = bz + mg + j * step + (Math.random() - 0.5) * 0.04;
+        if (isOnStreet(x, z)) continue;
         const h = CITY.BUILD_MIN_H + Math.random() * (CITY.BUILD_MAX_H - CITY.BUILD_MIN_H);
         buildings.push({ x, z, w, d, h });
       }
