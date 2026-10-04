@@ -110,7 +110,7 @@ const scene = new THREE.Scene();
 const W = window.innerWidth;
 const H = window.innerHeight;
 const camera = new THREE.PerspectiveCamera(70, W / H, 0.1, 500);
-camera.position.set(14, 0.55, 52.8);
+camera.position.set(14, 0.32, 52.75);
 
 const renderer = new THREE.WebGLRenderer({ antialias: true });
 renderer.setSize(W, H);
@@ -130,9 +130,9 @@ const roofMats = COLORS.roof.map(c => new THREE.MeshStandardMaterial({ color: c 
 const railMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
 const stopMat = new THREE.MeshStandardMaterial({ color: COLORS.tramStop });
 const tramMat = new THREE.MeshStandardMaterial({ color: COLORS.tramLine });
-const tramCarMat = new THREE.MeshStandardMaterial({ color: 0xdd3333 });
-const tramCabMat = new THREE.MeshStandardMaterial({ color: 0xffffff });
-const tramRoofMat = new THREE.MeshStandardMaterial({ color: 0x888888 });
+const tramCarMat = new THREE.MeshStandardMaterial({ color: 0xdd3333, transparent: true, opacity: 0.4 });
+const tramCabMat = new THREE.MeshStandardMaterial({ color: 0xffffff, transparent: true, opacity: 0.25 });
+const tramRoofMat = new THREE.MeshStandardMaterial({ color: 0x888888, transparent: true, opacity: 0.2 });
 const streetMat = new THREE.MeshStandardMaterial({ color: COLORS.street });
 const piazzaMat = new THREE.MeshStandardMaterial({ color: COLORS.piazza });
 const groundMat = new THREE.MeshStandardMaterial({ color: COLORS.ground });
@@ -290,8 +290,8 @@ const tramRoof = makeBox(0.7, 0.06, 1.6, tramRoofMat);
 tramRoof.position.set(14, 0.38, 52);
 scene.add(tramRoof);
 
-let camPos = new THREE.Vector3(14, 0.55, 52.8);
-let camTarget = new THREE.Vector3(9, 0.4, 42);
+let camPos = new THREE.Vector3(14, 0.32, 52.75);
+let camTarget = new THREE.Vector3(14, 0.3, 40);
 let yaw = Math.atan2(camPos.x - camTarget.x, camPos.z - camTarget.z);
 let pitch = -Math.asin((camPos.y - camTarget.y) / camPos.distanceTo(camTarget));
 let speed = 0.3;
